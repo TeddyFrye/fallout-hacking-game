@@ -4,16 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css" />
-    <title>RobCo Terminal</title>
+    <title>RobCo</title>
   </head>
   <body>
-    <h1>Welcome to RobCo Terminal</h1>
-    <form action="/guess" method="post">
-      <input type="text" name="guess" maxlength="5" required />
-      <button type="submit">Guess</button>
-    </form>
-    <% attempts.forEach(function(attempt) { %>
-    <p><%= attempt.guess %> : <%= attempt.feedback %></p>
-    <% }); %>
+    <div class="container">
+      <div class="game">
+        <h1>Welcome to RobCo Terminal</h1>
+        <form action="/guess" method="post">
+          <input type="text" name="guess" maxlength="5" required />
+          <button type="submit">Guess</button>
+        </form>
+        <% attempts.forEach(function(attempt) { %>
+        <p><%= attempt.guess %> : <%= attempt.feedback %></p>
+        <% }); %>
+      </div>
+      <div class="hints">
+        <p><%= mixedSymbols %></p>
+      </div>
+    </div>
   </body>
 </html>

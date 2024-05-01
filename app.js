@@ -47,12 +47,50 @@ function randomWord(arr) {
   return arr[randomIndex];
 }
 
+function generateSymbolMix(words, correct) {
+  let symbols = [
+    "@",
+    "#",
+    "$",
+    "%",
+    "^",
+    "&",
+    "*",
+    "(",
+    ")",
+    "-",
+    "+",
+    "=",
+    "|",
+    "{",
+    "}",
+    "[",
+    "]",
+    ":",
+    ";",
+    "?",
+  ];
+  let mixedArray = [
+    ...words,
+    ...Array(30)
+      .fill()
+      .map(() => symbols[Math.floor(Math.random() * symbols.length)]),
+  ];
+  mixedArray.push(correct); // Ensure correct word is in the mix
+  mixedArray.sort(() => 0.5 - Math.random());
+  return mixedArray.join(" ");
+}
+
 let correctWord = randomWord(wordPool);
 let attempts = [];
 
-// Routes
 app.get("/", (req, res) => {
-  res.render("index", { attempts: attempts, correctWord: correctWord });
+  const mixedSymbols = generateSymbolMix(wordPool.slice(0, 5), correctWord);
+  res.render("index", {
+    attempts: attempts,
+    correctWord: correctWord,
+    mixedSymbols: mixedSymbols,
+  });
 });
 
 app.post("/guess", (req, res) => {

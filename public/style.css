@@ -14,3 +14,13 @@ body {
 		visibility: hidden;
 	}
 }
+
+.container {
+	display: flex;
+	justify-content: space-between;
+}
+.game,
+.hints {
+	flex: 1;
+	padding: 10px;
+}
