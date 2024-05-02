@@ -1,5 +1,6 @@
 // Import dependencies
 import express from "express";
+import session from "express-session";
 import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -15,7 +16,13 @@ app.set("views", path.join(__dirname, "views"));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
-
+app.use(
+  session({
+    secret: "secret_key",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
 // Word pool and random word function
 const wordPool = [
   "apple",
@@ -72,7 +79,7 @@ function generateSymbolMix(words, correct) {
   ];
   let mixedArray = [
     ...words,
-    ...Array(30)
+    ...Array(200)
       .fill()
       .map(() => symbols[Math.floor(Math.random() * symbols.length)]),
   ];
@@ -81,14 +88,20 @@ function generateSymbolMix(words, correct) {
   return mixedArray.join(" ");
 }
 
-let correctWord = randomWord(wordPool);
-let attempts = [];
-
 app.get("/", (req, res) => {
-  const mixedSymbols = generateSymbolMix(wordPool.slice(0, 5), correctWord);
+  if (!req.session.correctWord || req.query.reset) {
+    req.session.correctWord = randomWord(wordPool);
+    req.session.attempts = [];
+  }
+
+  const mixedSymbols = generateSymbolMix(
+    wordPool.slice(0, 10),
+    req.session.correctWord
+  );
+
   res.render("index", {
-    attempts: attempts,
-    correctWord: correctWord,
+    attempts: req.session.attempts,
+    correctWord: req.session.correctWord, // Visible for debugging, remove for production
     mixedSymbols: mixedSymbols,
   });
 });
@@ -98,15 +111,34 @@ app.post("/guess", (req, res) => {
   if (guess.length === 5) {
     let feedback = "";
     for (let i = 0; i < guess.length; i++) {
-      if (guess[i] === correctWord[i]) {
+      if (guess[i] === req.session.correctWord[i]) {
         feedback += guess[i];
       } else {
         feedback += "_ ";
       }
     }
-    attempts.push({ guess: guess, feedback: feedback });
-    if (feedback === correctWord) {
-      return res.render("win");
+    req.session.attempts.push({ guess: guess, feedback: feedback });
+
+    if (feedback === req.session.correctWord) {
+      const mixedSymbols = generateSymbolMix(
+        wordPool.slice(0, 10),
+        req.session.correctWord
+      );
+
+      // Send the correct word and mixed symbols to the win page
+      return res.render("win", {
+        correctWord: req.session.correctWord,
+        mixedSymbols: mixedSymbols,
+      });
+    } else if (req.session.attempts.length >= 5) {
+      // handle maximum attempts
+      const mixedSymbols = generateSymbolMix(req.session.correctWord);
+
+      // Consider also rendering the lose page with some info
+      return res.render("lose", {
+        correctWord: req.session.correctWord,
+        mixedSymbols: mixedSymbols,
+      });
     }
   }
   res.redirect("/");
