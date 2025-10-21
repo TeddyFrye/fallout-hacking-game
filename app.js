@@ -101,7 +101,7 @@ app.get("/", (req, res) => {
 
   res.render("index", {
     attempts: req.session.attempts,
-    correctWord: req.session.correctWord, // Visible for debugging, remove for production
+    correctWord: req.session.correctWord,
     mixedSymbols: mixedSymbols,
   });
 });
@@ -125,16 +125,13 @@ app.post("/guess", (req, res) => {
         req.session.correctWord
       );
 
-      // Send the correct word and mixed symbols to the win page
       return res.render("win", {
         correctWord: req.session.correctWord,
         mixedSymbols: mixedSymbols,
       });
     } else if (req.session.attempts.length >= 5) {
-      // handle maximum attempts
       const mixedSymbols = generateSymbolMix(req.session.correctWord);
 
-      // Consider also rendering the lose page with some info
       return res.render("lose", {
         correctWord: req.session.correctWord,
         mixedSymbols: mixedSymbols,
