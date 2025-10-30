@@ -6,6 +6,41 @@
     <link rel="stylesheet" href="style.css" />
     <title>RobCo</title>
   </head>
+  <script>
+    async function loadScoreboard() {
+      try {
+        const res = await fetch("/api/scoreboard");
+        if (!res.ok) throw new Error("Failed to fetch scoreboard");
+        const data = await res.json();
+
+        const tbody = document.querySelector("#score-table tbody");
+        if (!Array.isArray(data) || !tbody) return;
+
+        tbody.innerHTML = data
+          .map((row, i) => {
+            const secsNum = Number(row.seconds);
+            const secs = Number.isFinite(secsNum) ? secsNum.toFixed(0) : "—";
+            const finished = row.finished_at
+              ? new Date(row.finished_at).toLocaleString()
+              : "—";
+            return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${row.won ? "✅ Win" : "❌ Loss"}</td>
+            <td>${secs} seconds</td>
+            <td>${finished}</td>
+          </tr>
+        `;
+          })
+          .join("");
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadScoreboard();
+  </script>
+
   <body>
     <div class="container">
       <div class="game">
@@ -21,6 +56,21 @@
       <div class="hints">
         <p><%= mixedSymbols %></p>
       </div>
+      <hr />
+      <section id="scoreboard">
+        <h2>Recent Games</h2>
+        <table id="score-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Result</th>
+              <th>Duration (s)</th>
+              <th>Finished</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
     </div>
   </body>
 </html>

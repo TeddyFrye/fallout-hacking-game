@@ -4,6 +4,10 @@ import session from "express-session";
 import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+dotenv.config();
+
+import { q } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,11 +22,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.use(
   session({
-    secret: "secret_key",
+    secret: process.env.SESSION_SECRET || "dev_secret",
     resave: false,
     saveUninitialized: false,
   })
 );
+
 // Word pool and random word function
 const wordPool = [
   "apple",
@@ -88,57 +93,154 @@ function generateSymbolMix(words, correct) {
   return mixedArray.join(" ");
 }
 
-app.get("/", (req, res) => {
-  if (!req.session.correctWord || req.query.reset) {
-    req.session.correctWord = randomWord(wordPool);
-    req.session.attempts = [];
-  }
-
-  const mixedSymbols = generateSymbolMix(
-    wordPool.slice(0, 10),
-    req.session.correctWord
+async function ensureActiveGame(req) {
+  // If session doesn’t have a game id or game finished, create a new game row
+  const { rows } = await q(
+    `SELECT id, finished_at FROM games WHERE session_id = $1 ORDER BY id DESC LIMIT 1`,
+    [req.sessionID]
   );
 
-  res.render("index", {
-    attempts: req.session.attempts,
-    correctWord: req.session.correctWord,
-    mixedSymbols: mixedSymbols,
-  });
-});
-
-app.post("/guess", (req, res) => {
-  const guess = req.body.guess;
-  if (guess.length === 5) {
-    let feedback = "";
-    for (let i = 0; i < guess.length; i++) {
-      if (guess[i] === req.session.correctWord[i]) {
-        feedback += guess[i];
-      } else {
-        feedback += "_ ";
-      }
+  const lastGame = rows[0];
+  if (!lastGame || lastGame.finished_at) {
+    const correct = randomWord(wordPool);
+    const inserted = await q(
+      `INSERT INTO games(session_id, correct_word) VALUES ($1, $2) RETURNING id, correct_word`,
+      [req.sessionID, correct]
+    );
+    req.session.gameId = inserted.rows[0].id;
+    req.session.correctWord = inserted.rows[0].correct_word;
+    req.session.attempts = [];
+  } else {
+    // Rehydrate session if it was new or lost
+    if (!req.session.gameId) req.session.gameId = lastGame.id;
+    if (!req.session.correctWord) {
+      const cw = await q(`SELECT correct_word FROM games WHERE id = $1`, [
+        lastGame.id,
+      ]);
+      req.session.correctWord = cw.rows[0].correct_word;
     }
-    req.session.attempts.push({ guess: guess, feedback: feedback });
-
-    if (feedback === req.session.correctWord) {
-      const mixedSymbols = generateSymbolMix(
-        wordPool.slice(0, 10),
-        req.session.correctWord
+    if (!req.session.attempts) {
+      const { rows: guesses } = await q(
+        `SELECT guess_text, feedback FROM guesses WHERE game_id = $1 ORDER BY id ASC`,
+        [req.session.gameId]
       );
-
-      return res.render("win", {
-        correctWord: req.session.correctWord,
-        mixedSymbols: mixedSymbols,
-      });
-    } else if (req.session.attempts.length >= 5) {
-      const mixedSymbols = generateSymbolMix(req.session.correctWord);
-
-      return res.render("lose", {
-        correctWord: req.session.correctWord,
-        mixedSymbols: mixedSymbols,
-      });
+      req.session.attempts = guesses.map((g) => ({
+        guess: g.guess_text,
+        feedback: g.feedback,
+      }));
     }
   }
-  res.redirect("/");
+}
+
+app.get("/", async (req, res, next) => {
+  try {
+    if (req.query.reset) {
+      // finish any active game and start fresh
+      if (req.session.gameId) {
+        await q(
+          `UPDATE games SET finished_at = NOW(), won = FALSE WHERE id = $1 AND finished_at IS NULL`,
+          [req.session.gameId]
+        );
+      }
+      req.session.gameId = null;
+      req.session.correctWord = null;
+      req.session.attempts = [];
+    }
+
+    await ensureActiveGame(req);
+
+    const mixedSymbols = generateSymbolMix(
+      wordPool.slice(0, 10),
+      req.session.correctWord
+    );
+
+    res.render("index", {
+      attempts: req.session.attempts,
+      correctWord: req.session.correctWord,
+      mixedSymbols,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.post("/guess", async (req, res, next) => {
+  try {
+    const guess = (req.body.guess || "").trim();
+    if (guess.length === 5) {
+      let feedback = "";
+      for (let i = 0; i < guess.length; i++) {
+        feedback += guess[i] === req.session.correctWord[i] ? guess[i] : "_ ";
+      }
+
+      // Save to DB
+      await q(
+        `INSERT INTO guesses(game_id, guess_text, feedback) VALUES ($1, $2, $3)`,
+        [req.session.gameId, guess, feedback]
+      );
+
+      // Mirror to session (still useful for rendering)
+      req.session.attempts.push({ guess, feedback });
+
+      if (feedback === req.session.correctWord) {
+        await q(
+          `UPDATE games SET finished_at = NOW(), won = TRUE WHERE id = $1 AND finished_at IS NULL`,
+          [req.session.gameId]
+        );
+
+        const mixedSymbols = generateSymbolMix(
+          wordPool.slice(0, 10),
+          req.session.correctWord
+        );
+        return res.render("win", {
+          correctWord: req.session.correctWord,
+          mixedSymbols,
+        });
+      } else if (req.session.attempts.length >= 5) {
+        await q(
+          `UPDATE games SET finished_at = NOW(), won = FALSE WHERE id = $1 AND finished_at IS NULL`,
+          [req.session.gameId]
+        );
+
+        const mixedSymbols = generateSymbolMix(
+          wordPool.slice(0, 10),
+          req.session.correctWord
+        );
+        return res.render("lose", {
+          correctWord: req.session.correctWord,
+          mixedSymbols,
+        });
+      }
+    }
+    res.redirect("/");
+  } catch (e) {
+    next(e);
+  }
+});
+
+// app.js
+app.get("/api/scoreboard", async (_req, res, next) => {
+  try {
+    const { rows } = await q(`
+      SELECT
+        id,
+        won,
+        started_at,
+        finished_at,
+        (EXTRACT(EPOCH FROM (finished_at - started_at)))::float AS seconds
+      FROM games
+      WHERE finished_at IS NOT NULL
+      ORDER BY finished_at DESC
+      LIMIT 10;
+    `);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/health", (_req, res) => {
+  res.status(200).send("ok");
 });
 
 app.listen(port, () => {
