@@ -7,30 +7,21 @@
     <title>RobCo</title>
   </head>
   <script>
-    async function loadScoreboard() {
+    async function loadRecent() {
       try {
         const res = await fetch("/api/scoreboard");
-        if (!res.ok) throw new Error("Failed to fetch scoreboard");
-        const data = await res.json();
+        if (!res.ok) throw new Error("Failed to fetch recent games");
+        const data = await res.json(); // [{ finished_at }, ...]
 
-        const tbody = document.querySelector("#score-table tbody");
-        if (!Array.isArray(data) || !tbody) return;
+        const list = document.querySelector("#recent-list");
+        if (!Array.isArray(data) || !list) return;
 
-        tbody.innerHTML = data
-          .map((row, i) => {
-            const secsNum = Number(row.seconds);
-            const secs = Number.isFinite(secsNum) ? secsNum.toFixed(0) : "—";
-            const finished = row.finished_at
+        list.innerHTML = data
+          .map((row) => {
+            const local = row.finished_at
               ? new Date(row.finished_at).toLocaleString()
               : "—";
-            return `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${row.won ? "✅ Win" : "❌ Loss"}</td>
-            <td>${secs} seconds</td>
-            <td>${finished}</td>
-          </tr>
-        `;
+            return `<li>${local}</li>`;
           })
           .join("");
       } catch (err) {
@@ -38,7 +29,7 @@
       }
     }
 
-    loadScoreboard();
+    loadRecent();
   </script>
 
   <body>
@@ -59,17 +50,7 @@
       <hr />
       <section id="scoreboard">
         <h2>Recent Games</h2>
-        <table id="score-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Result</th>
-              <th>Duration (s)</th>
-              <th>Finished</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <ol id="recent-list" class="recent-list"></ol>
       </section>
     </div>
   </body>

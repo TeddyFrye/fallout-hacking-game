@@ -5,9 +5,9 @@
 	"description": "This is a little side project to create a simple site to simulate the hacking mini-game from the Fallout series.",
 	"main": "index.js",
 	"scripts": {
-    "start": "node app.js",
-    "dev": "node --watch app.js",
-    "migrate": "node scripts/migrate.js"
+		"start": "node app.js",
+		"dev": "node --watch app.js",
+		"migrate": "node scripts/migrate.js"
 	},
 	"keywords": [],
 	"author": "",
@@ -17,7 +17,7 @@
 		"dotenv": "^17.2.3",
 		"ejs": "^3.1.10",
 		"express": "^4.19.2",
-		"express-session": "^1.18.0",
+		"express-session": "^1.18.2",
 		"pg": "^8.16.3",
 		"readline-sync": "^1.4.10"
 	}
