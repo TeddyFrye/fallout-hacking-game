@@ -35,6 +35,11 @@ body {
   text-align: center;
   text-shadow: 0 0 10px #00ff00;
 
+/* flex stuff */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
 }
 
 @media screen{
