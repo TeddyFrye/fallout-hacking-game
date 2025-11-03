@@ -1,26 +1,74 @@
-body {
-	background-color: black;
-	color: #00FF00;
-	font-family: "Lucida Console", Monaco, monospace;
-	font-size: 1.5em;
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: black;
+  color: #00FF00;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 1.5em;
 }
 
 .blink {
-	animation: blink 1s steps(2, start) infinite;
+  animation: blink 1s steps(2, start) infinite;
 }
 
 @keyframes blink {
-	to {
-		visibility: hidden;
-	}
+  to {
+    visibility: hidden;
+  }
 }
 
 .container {
-	display: flex;
-	justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  margin: auto;
+  padding: 20px;
+  box-sizing: border-box;
 }
+
 .game,
 .hints {
-	flex: 1;
-	padding: 10px;
+  flex: 1;
+  padding: 10px;
+}
+
+/* Make CRT fill the whole screen */
+.crt {
+  position: relative;
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  /* scanline effect */
+  background: repeating-linear-gradient(
+    to top,
+    #000000 0px,
+    #000000 1px,
+    #333333 2px,
+    #333333 3px
+  );
+
+  text-align: center;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+@media screen {
+  .crt {
+    animation: scanlines 55s linear infinite;
+  }
+}
+
+@keyframes scanlines {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 -10px;
+  }
 }

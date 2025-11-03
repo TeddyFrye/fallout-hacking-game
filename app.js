@@ -222,18 +222,13 @@ app.post("/guess", async (req, res, next) => {
 app.get("/api/scoreboard", async (_req, res, next) => {
   try {
     const { rows } = await q(`
-      SELECT
-        id,
-        won,
-        started_at,
-        finished_at,
-        (EXTRACT(EPOCH FROM (finished_at - started_at)))::float AS seconds
+      SELECT finished_at
       FROM games
       WHERE finished_at IS NOT NULL
       ORDER BY finished_at DESC
       LIMIT 10;
     `);
-    res.json(rows);
+    res.json(rows); // [{ finished_at: "2025-10-31T18:20:12.345Z" }, ...]
   } catch (err) {
     next(err);
   }
